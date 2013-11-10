@@ -49,23 +49,14 @@ class Let
 end
 
 # Letrec binding
-class Letrec
-  attr_reader :v, :defn, :body
-  def initialize(v, defn, body)
-    @v = v
-    @defn = defn
-    @body = body
-  end
+class Letrec < Let
 
   def to_s
     "(letrec #{@v} = #{@defn} in #{@body})"
   end
 end
 
-class TypeError < StandardError
-end
-class ParseError < StandardError
-end
+class ParseError < StandardError; end
 
 # A type variable standing for an arbitrary type.
 #
@@ -127,9 +118,8 @@ class TypeOperator
       "#{@name} #{@types.join(' ')}"
     end
   end
-  def inspect
-    to_s()
-  end
+
+  def inspect; to_s; end
 end
 
 # A binary type constructor which builds function
@@ -138,9 +128,8 @@ class Function < TypeOperator
   def initialize(from_type, to_type)
     super('->', [from_type, to_type])
   end
-  def inspect
-    to_s
-  end
+
+  def inspect; to_s; end
 end
 
 # Basic types are constructed with a nullary type constructor
@@ -189,11 +178,6 @@ def analyse(node, env, non_generic=nil)
     new_non_generic.add arg_type
     result_type     = analyse(node.body, new_env, new_non_generic)
     Function.new(arg_type, result_type)
-  when Let
-    defn_type       = analyse(node.defn, env, non_generic)
-    new_env         = env.dup
-    new_env[node.v] = defn_type
-    analyse(node.body, new_env, non_generic)
   when Letrec
     new_type        = TypeVariable.new
     new_env         = env.dup
@@ -202,6 +186,11 @@ def analyse(node, env, non_generic=nil)
     new_non_generic.add new_type
     defn_type       = analyse(node.defn, new_env, new_non_generic)
     unify(new_type, defn_type)
+    analyse(node.body, new_env, non_generic)
+  when Let
+    defn_type       = analyse(node.defn, env, non_generic)
+    new_env         = env.dup
+    new_env[node.v] = defn_type
     analyse(node.body, new_env, non_generic)
   end
   #raise "Unhandled syntax node #{t.class}"
